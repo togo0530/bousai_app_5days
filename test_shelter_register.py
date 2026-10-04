@@ -338,6 +338,9 @@ def test_shelter_search_form_uses_registered_districts_and_retains_filters(monke
     assert 'value="洪水" checked' in html
     assert 'value="ペット可" checked' in html
     assert 'value="施設D"' not in html
+    assert html.index('全施設一覧を見る') < html.index('この条件で避難所を検索')
+    assert 'class="all-shelters-link"' in html
+    assert '.search-primary { width: 100%; min-height: 76px;' in html
 
 
 def test_shelter_registration_validates_and_persists_search_fields(monkeypatch):
@@ -845,6 +848,17 @@ def test_home_api_and_view_share_only_resident_instructions_and_latest_broadcast
     assert 'やさしい日本語' in home
     assert 'aria-pressed="true"' in home
     assert '10分おき自動更新' in home
+
+
+def test_home_text_size_control_scales_all_page_text_and_restores_original_sizes():
+    html = app_module.app.test_client().get('/').get_data(as_text=True)
+
+    assert 'document.body.classList.toggle(\'large-readable\', useLargeText)' in html
+    assert "document.querySelectorAll('body *')" in html
+    assert "(computedSize * 1.1) + 'px'" in html
+    assert "element.style.removeProperty('font-size')" in html
+    assert "new MutationObserver" in html
+    assert '.reader-controls button { min-height: 44px;' in html
 
 
 def test_emergency_notices_initially_show_only_today_and_filter_periods(monkeypatch):

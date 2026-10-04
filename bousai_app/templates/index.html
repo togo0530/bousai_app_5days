@@ -29,7 +29,6 @@
   .reader-controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
   .reader-controls button { min-height: 44px; padding: 8px 13px; border: 1px solid #475569; border-radius: 7px; background: #fff; color: #0f172a; font: inherit; font-weight: 700; cursor: pointer; }
   .reader-controls button[aria-pressed="true"] { outline: 3px solid #1d4ed8; outline-offset: 1px; }
-  .large-readable .emergency-content, .large-readable #weatherContent { font-size: 1.25rem; line-height: 1.7; }
   .simple-text[hidden], .normal-text[hidden] { display: none; }
   .broadcast-home-item { margin: 10px 0; padding: 12px 14px; border-left: 5px solid #b91c1c; border-radius: 6px; background: #fff1f2; color: #7f1d1d; }
   @media (max-width: 600px) {
@@ -213,6 +212,7 @@ document.addEventListener('DOMContentLoaded', function () {
   let todayJst = {{ today_jst|tojson }};
   let useSimpleJapanese = false;
   let useLargeText = false;
+  const originalFontSizes = new Map();
 
   function addTextElement(parent, tag, text, className) {
     const element = document.createElement(tag);
@@ -350,11 +350,62 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.normal-text').forEach(element => { element.hidden = useSimpleJapanese; });
     document.querySelectorAll('.simple-text').forEach(element => { element.hidden = !useSimpleJapanese; });
     document.body.classList.toggle('large-readable', useLargeText);
+    if (useLargeText) {
+      const elements = [...document.querySelectorAll('body *')];
+      const computedSizes = elements.map(element =>
+        Number.parseFloat(window.getComputedStyle(element).fontSize)
+      );
+      elements.forEach((element, index) => {
+        enlargeText(element, computedSizes[index]);
+      });
+    } else {
+      originalFontSizes.forEach((original, element) => {
+        if (original.value) {
+          element.style.setProperty('font-size', original.value, original.priority);
+        } else {
+          element.style.removeProperty('font-size');
+        }
+      });
+      originalFontSizes.clear();
+    }
     document.getElementById('normalTextMode').setAttribute('aria-pressed', String(!useSimpleJapanese));
     document.getElementById('simpleTextMode').setAttribute('aria-pressed', String(useSimpleJapanese));
     document.getElementById('increaseTextSize').setAttribute('aria-pressed', String(useLargeText));
     document.getElementById('standardTextSize').setAttribute('aria-pressed', String(!useLargeText));
   }
+
+  function enlargeText(element, computedSize) {
+    if (originalFontSizes.has(element)) return;
+    if (computedSize === undefined) {
+      computedSize = Number.parseFloat(window.getComputedStyle(element).fontSize);
+      const parent = element.parentElement;
+      const parentOriginal = parent && originalFontSizes.get(parent);
+      if (parentOriginal && Number.parseFloat(window.getComputedStyle(element).fontSize)
+          === Number.parseFloat(window.getComputedStyle(parent).fontSize)) {
+        computedSize = parentOriginal.computedSize;
+      }
+    }
+    if (!Number.isFinite(computedSize)) return;
+    originalFontSizes.set(element, {
+      value: element.style.getPropertyValue('font-size'),
+      priority: element.style.getPropertyPriority('font-size'),
+      computedSize,
+    });
+    element.style.setProperty('font-size', (computedSize * 1.1) + 'px', 'important');
+  }
+
+  const fontSizeObserver = new MutationObserver(mutations => {
+    if (!useLargeText) return;
+    mutations.forEach(mutation => {
+      mutation.addedNodes.forEach(node => {
+        if (node.nodeType !== Node.ELEMENT_NODE) return;
+        enlargeText(node);
+        node.querySelectorAll('*').forEach(enlargeText);
+      });
+    });
+  });
+  fontSizeObserver.observe(document.body, { childList: true, subtree: true });
+
   document.getElementById('normalTextMode').addEventListener('click', function () {
     useSimpleJapanese = false;
     applyReaderSettings();
