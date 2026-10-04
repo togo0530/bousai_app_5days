@@ -1,229 +1,51 @@
 {% extends "base.html" %}
 
+{% block title %}{% if is_all_shelters %}全施設一覧{% else %}避難所検索結果{% endif %} - 防災アプリ{% endblock %}
+
 {% block content %}
 <style>
-  .search-result-page {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 8px 0 30px;
-  }
-  .page-title {
-    margin: 0 0 18px;
-    font-size: 36px;
-    color: #0f172a;
-    font-weight: 700;
-    letter-spacing: 0.03em;
-  }
-  .result-summary {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    margin-bottom: 12px;
-    color: #334155;
-    font-size: 14px;
-    font-weight: 600;
-  }
-  .result-count {
-    display: inline-block;
-    min-width: 72px;
-    text-align: center;
-    margin-left: 10px;
-    padding: 6px 12px;
-    border-radius: 999px;
-    background: #dbeafe;
-    color: #1d4ed8;
-  }
-  .table-wrap {
-    overflow-x: auto;
-    border: 2px solid #1f2937;
-    border-radius: 10px;
-    background: #fff;
-  }
-  .shelter-table {
-    width: 100%;
-    border-collapse: collapse;
-    background: #fff;
-  }
-  .shelter-table th,
-  .shelter-table td {
-    border: 1px solid #1f2937;
-    padding: 14px 12px;
-    text-align: left;
-    vertical-align: middle;
-    font-size: 15px;
-  }
-  .shelter-table th {
-    background: #d7f7d7;
-    color: #0f172a;
-    font-weight: 700;
-  }
-  .shelter-table tbody tr:nth-child(odd) {
-    background: #f8fafc;
-  }
-  .shelter-name {
-    font-weight: 700;
-    color: #0f172a;
-  }
-  .status-badge {
-    display: inline-block;
-    padding: 6px 10px;
-    border-radius: 999px;
-    font-size: 13px;
-    font-weight: 700;
-    background: #dcfce7;
-    color: #166534;
-    border: 1px solid rgba(22, 101, 52, 0.2);
-  }
-  .status-badge.warning {
-    background: #fef3c7;
-    color: #92400e;
-    border-color: rgba(146, 64, 14, 0.2);
-  }
-  .status-badge.closed {
-    background: #fee2e2;
-    color: #991b1b;
-    border-color: rgba(153, 27, 27, 0.2);
-  }
-  .capacity-box {
-    display: inline-block;
-    padding: 6px 8px;
-    border-radius: 8px;
-    background: #eff6ff;
-    color: #1d4ed8;
-    font-weight: 700;
-  }
-  .facility-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-  .facility-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 5px 8px;
-    border-radius: 999px;
-    background: #ecfeff;
-    border: 1px solid #a5f3fc;
-    color: #0f172a;
-    font-size: 13px;
-    font-weight: 600;
-  }
-  .result-actions {
-    margin-top: 20px;
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-  .result-actions a,
-  .result-actions button {
-    display: inline-block;
-    padding: 10px 16px;
-    border: 1px solid #1f2937;
-    border-radius: 8px;
-    text-decoration: none;
-    background: #fff;
-    color: #0f172a;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .result-actions button {
-    background: #fee2e2;
-  }
+  .results-page { max-width: 1100px; margin: 0 auto; padding: 8px 0 30px; }
+  .results-title { margin: 0 0 18px; color: #0f172a; font-size: 30px; }
+  .results-summary { margin: 0 0 16px; color: #334155; font-weight: 700; }
+  .result-count { display: inline-block; margin-left: 8px; padding: 5px 11px; border-radius: 999px; color: #1e3a8a; background: #dbeafe; }
+  .shelter-card-list { display: grid; gap: 14px; }
+  .shelter-card { padding: 18px; background: #fff; border: 1px solid #cbd5e1; border-radius: 11px; box-shadow: 0 2px 8px rgba(15,23,42,.06); }
+  .shelter-card h3 { margin: 0 0 12px; color: #0f3e68; font-size: 21px; }
+  .shelter-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; margin: 0; }
+  .shelter-facts div { min-width: 0; }
+  .shelter-facts dt { margin-bottom: 4px; color: #334155; font-size: 14px; font-weight: 700; }
+  .shelter-facts dd { margin: 0; color: #0f172a; overflow-wrap: anywhere; }
+  .state-tag { display: inline-block; padding: 3px 9px; border: 1px solid #64748b; border-radius: 999px; font-weight: 700; }
+  .state-tag.available { color: #14532d; background: #f0fdf4; border-color: #15803d; }
+  .state-tag.unavailable { color: #7f1d1d; background: #fef2f2; border-color: #b91c1c; }
+  .state-tag.unknown { color: #334155; background: #f1f5f9; border-color: #64748b; }
+  .shelter-card-actions { margin-top: 14px; }
+  .shelter-card-actions a, .results-actions a { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 9px 14px; border: 1px solid #475569; border-radius: 7px; color: #0f172a; background: #fff; text-decoration: none; font-weight: 700; }
+  .no-results, .results-error { padding: 16px; border-radius: 8px; }
+  .no-results { color: #334155; background: #f1f5f9; }
+  .results-error { color: #7f1d1d; background: #fef2f2; border-left: 5px solid #b91c1c; }
+  .results-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+  :focus-visible { outline: 3px solid #f59e0b; outline-offset: 2px; }
+  @media (max-width: 620px) { .shelter-facts { grid-template-columns: 1fr; } .results-actions a { flex: 1 1 100%; } }
 </style>
 
-<div class="search-result-page">
-  <h2 class="page-title">避難所検索結果表示画面</h2>
-
-  {% if results %}
-    <div class="result-summary">
-      <span>検索結果</span>
-      <span class="result-count">{{ results|length }}件</span>
-    </div>
-
-    <div class="table-wrap">
-      <table class="shelter-table">
-        <thead>
-          <tr>
-            <th>避難所名</th>
-            <th>住所</th>
-            <th>開設状況</th>
-            <th>収容人数</th>
-            <th>現在の避難者数</th>
-            <th>混雑状況</th>
-            <th>設備</th>
-            {% if session.get('logged_in') %}
-              <th>操作</th>
-            {% endif %}
-          </tr>
-        </thead>
-        <tbody>
-          {% for shelter in results %}
-          {% set capacity = shelter.capacity if shelter.capacity is defined else 0 %}
-          {% set current_count = shelter.current_count if shelter.current_count is defined else 0 %}
-          {% set facilities = shelter.facilities if shelter.facilities is defined else [] %}
-          {% set crowd_status = '空きあり' %}
-          {% if capacity and current_count >= capacity %}
-            {% set crowd_status = '満員' %}
-          {% elif capacity and current_count / capacity >= 0.7 %}
-            {% set crowd_status = 'やや混雑' %}
-          {% endif %}
-          <tr>
-            <td class="shelter-name">{{ shelter.name }}</td>
-            <td>{{ shelter.address or '未登録' }}</td>
-            <td>
-              {% set status = (shelter.status or '未登録') %}
-              {% if status == '一時閉鎖' %}
-                <span class="status-badge closed">{{ status }}</span>
-              {% elif status == '開設中' %}
-                <span class="status-badge">{{ status }}</span>
-              {% else %}
-                <span class="status-badge warning">{{ status }}</span>
-              {% endif %}
-            </td>
-            <td><span class="capacity-box">{{ capacity or 0 }}人</span></td>
-            <td>{{ current_count or 0 }}人</td>
-            <td>{{ crowd_status }}</td>
-            <td>
-              {% if facilities %}
-                <div class="facility-list">
-                  {% for facility in facilities %}
-                    {% if facility == 'ペット可' %}
-                      <span class="facility-tag">🐾 {{ facility }}</span>
-                    {% elif facility == 'バリアフリー' %}
-                      <span class="facility-tag">♿ {{ facility }}</span>
-                    {% elif facility == '高齢者対応' %}
-                      <span class="facility-tag">👴 {{ facility }}</span>
-                    {% elif facility == '子ども連れ対応' %}
-                      <span class="facility-tag">👧 {{ facility }}</span>
-                    {% else %}
-                      <span class="facility-tag">{{ facility }}</span>
-                    {% endif %}
-                  {% endfor %}
-                </div>
-              {% else %}
-                <span>―</span>
-              {% endif %}
-            </td>
-            {% if session.get('logged_in') %}
-              <td>
-                <form method="post" action="{{ url_for('delete_shelter', shelter_id=shelter.id) }}" style="margin: 0;">
-                  <button type="submit" onclick="return confirm('この避難所を削除しますか？');">削除</button>
-                </form>
-              </td>
-            {% endif %}
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+<main class="results-page">
+  <h2 class="results-title">{% if is_all_shelters %}全施設一覧{% else %}避難所検索結果{% endif %}</h2>
+  {% if search_error %}
+    <p class="results-error" role="alert">{{ search_error }}</p>
+  {% elif results %}
+    <p class="results-summary" role="status">表示施設 <span class="result-count">{{ results|length }}件</span></p>
+    <div class="shelter-card-list">
+      {% include "shelter_cards.html" %}
     </div>
   {% else %}
-    <p>該当する避難所が見つかりませんでした</p>
+    <div class="no-results" role="status">
+      {% if is_all_shelters %}<p>登録されている施設はありません。</p>{% else %}<p>条件に該当する避難所はありません。</p><p>災害種別や設備条件を減らすか、施設名・地区の条件を見直してください。</p>{% endif %}
+    </div>
   {% endif %}
-
-  <div class="result-actions">
-    <a href="/shelter_search">検索画面に戻る</a>
-    <a href="/">トップページへ戻る</a>
-  </div>
-</div>
+  <nav class="results-actions" aria-label="検索結果画面の移動">
+    {% if not is_all_shelters %}<a href="{{ url_for('shelter_search') }}{% if search_query %}?{{ search_query }}{% endif %}">検索条件を変更する</a><a href="{{ url_for('shelter_search') }}">検索条件をクリア</a>{% else %}<a href="{{ url_for('shelter_search') }}">避難所検索へ戻る</a>{% endif %}
+    <a href="{{ url_for('index') }}">ホームへ戻る</a>
+  </nav>
+</main>
 {% endblock %}

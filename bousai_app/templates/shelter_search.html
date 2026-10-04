@@ -1,97 +1,77 @@
 {% extends "base.html" %}
 
+{% block title %}避難所検索 - 防災アプリ{% endblock %}
+
 {% block content %}
 <style>
-  .search-page {
-    max-width: 980px;
-    margin: 0 auto;
-    padding: 8px 0 30px;
-  }
-  .search-box {
-    background: #ffffff;
-    border: 2px solid #1f2937;
-    border-radius: 12px;
-    padding: 24px;
-    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
-  }
-  .search-title {
-    margin: 0 0 18px;
-    font-size: 32px;
-    color: #0f172a;
-  }
-  .search-form {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    align-items: flex-end;
-  }
-  .field {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    min-width: 220px;
-  }
-  .field label {
-    font-weight: 700;
-    color: #0f172a;
-  }
-  .field select,
-  .field button {
-    padding: 12px 16px;
-    border-radius: 10px;
-    border: 1px solid #1f2937;
-    font-size: 15px;
-  }
-  .field select {
-    background: #fff;
-    min-width: 220px;
-  }
-  .field button {
-    background: #dbeafe;
-    font-weight: 700;
-    cursor: pointer;
-  }
-  .inline-link {
-    margin-top: 18px;
-    display: inline-block;
-    color: #1d4ed8;
-    font-weight: 700;
-    text-decoration: none;
-  }
-  .result-panel {
-    margin-top: 26px;
-    background: #f8fafc;
-    border: 1px solid rgba(148,163,184,0.5);
-    border-radius: 12px;
-    padding: 18px;
-  }
+  .search-page { max-width: 980px; margin: 0 auto; padding: 8px 0 30px; }
+  .search-box { background: #fff; border: 1px solid #cbd5e1; border-radius: 12px; padding: 24px; box-shadow: 0 4px 14px rgba(15, 23, 42, .07); }
+  .search-title { margin: 0 0 8px; font-size: 32px; color: #0f172a; }
+  .search-intro, .field-help { color: #334155; line-height: 1.7; }
+  .search-field { margin: 22px 0; }
+  .search-field > label, .search-field legend { display: block; margin-bottom: 8px; color: #0f172a; font-weight: 700; }
+  .search-field select, .search-field input[type="search"] { width: 100%; min-height: 48px; padding: 10px 12px; border: 1px solid #64748b; border-radius: 8px; color: #0f172a; background: #fff; font: inherit; }
+  .checkbox-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+  .checkbox-option { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 9px 12px; border: 1px solid #94a3b8; border-radius: 8px; color: #0f172a; font-weight: 600; cursor: pointer; }
+  .checkbox-option input { width: 21px; height: 21px; }
+  .search-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 26px; }
+  .search-primary, .search-secondary { min-height: 56px; display: flex; justify-content: center; align-items: center; padding: 12px; border-radius: 9px; font: inherit; font-weight: 700; text-align: center; cursor: pointer; }
+  .search-primary { color: #fff; background: #075985; border: 2px solid #075985; font-size: 18px; }
+  .search-secondary { color: #0f172a; background: #fff; border: 2px solid #475569; text-decoration: none; }
+  .safety-note { margin-top: 22px; padding: 14px; border-left: 5px solid #b45309; background: #fffbeb; color: #422006; line-height: 1.7; }
+  .search-navigation { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+  .search-navigation a { display: inline-flex; align-items: center; min-height: 44px; padding: 9px 14px; color: #0f172a; background: #fff; border: 1px solid #475569; border-radius: 8px; text-decoration: none; font-weight: 700; }
+  :focus-visible { outline: 3px solid #f59e0b; outline-offset: 2px; }
+  @media (max-width: 600px) { .search-box { padding: 17px; } .search-actions { grid-template-columns: 1fr; } .search-navigation a { flex: 1 1 100%; justify-content: center; } }
 </style>
 
 <div class="search-page">
-  <div class="search-box">
-    <h2 class="search-title">避難所検索</h2>
-
-    <form class="search-form" method="get" action="/search_results">
-      <div class="field">
+  <section class="search-box" aria-labelledby="search-title">
+    <h2 class="search-title" id="search-title">避難所検索</h2>
+    <p class="search-intro">地区や施設名、必要な災害対応・設備を組み合わせて検索できます。地区が分からなくても施設名だけで検索できます。</p>
+    <form method="get" action="{{ url_for('search_results') }}">
+      <div class="search-field">
+        <label for="keyword">避難所名で検索</label>
+        <input type="search" id="keyword" name="keyword" value="{{ request.args.get('keyword', request.args.get('q', '')) }}" placeholder="例：中央小学校">
+        <p class="field-help">施設名の一部でも検索できます（例：「小学校」）。大文字・小文字は区別しません。</p>
+      </div>
+      <div class="search-field">
         <label for="district">地区</label>
         <select id="district" name="district">
-          <option value="">全地区</option>
-          <option value="青森市">青森市</option>
-          <option value="中央区">中央区</option>
-          <option value="東区">東区</option>
-          <option value="西区">西区</option>
+          <option value="">地区を指定しない</option>
+          {% for district in districts %}
+            <option value="{{ district }}"{% if request.args.get('district') == district %} selected{% endif %}>{{ district }}</option>
+          {% endfor %}
         </select>
+        {% if not districts %}<p class="field-help">地区名が登録されている施設はありません。地区を指定せず検索できます。</p>{% else %}<p class="field-help">地区が分からない場合は「地区を指定しない」のままにしてください。</p>{% endif %}
       </div>
-      <div class="field">
-        <button type="submit">検索</button>
+      <fieldset class="search-field">
+        <legend>災害種別（複数選択可）</legend>
+        <div class="checkbox-grid">
+          {% for disaster_type in disaster_types %}
+            <label class="checkbox-option"><input type="checkbox" name="disaster_type" value="{{ disaster_type }}"{% if disaster_type in request.args.getlist('disaster_type') %} checked{% endif %}>{{ disaster_type }}</label>
+          {% endfor %}
+        </div>
+        <p class="field-help">複数選択した場合、選択したすべての種別への対応が確認された施設だけを表示します。</p>
+      </fieldset>
+      <fieldset class="search-field">
+        <legend>必要な設備（複数選択可）</legend>
+        <div class="checkbox-grid">
+          {% for facility in facility_options %}
+            <label class="checkbox-option"><input type="checkbox" name="facility" value="{{ facility }}"{% if facility in request.args.getlist('facility') %} checked{% endif %}>{{ facility }}</label>
+          {% endfor %}
+        </div>
+        <p class="field-help">複数選択した場合、すべてに「可」と登録された施設だけを表示します。「未確認」は結果に含まれません。</p>
+      </fieldset>
+      <div class="search-actions">
+        <button class="search-primary" type="submit">この条件で避難所を検索</button>
+        <a class="search-secondary" href="{{ url_for('all_shelters') }}">全施設一覧を見る</a>
       </div>
     </form>
-
-    <a class="inline-link" href="/all_shelters">全施設一覧を見る</a>
-  </div>
-
-  <div class="result-panel">
-    <p>検索後は、避難所名・住所・開設状況を一覧で確認できます。</p>
-  </div>
+    <div class="safety-note" role="note">ここに表示する情報は避難所の安全性を保証するものではありません。実際に避難する際は、自治体の避難情報および現地の状況に従ってください。</div>
+  </section>
+  <nav class="search-navigation" aria-label="検索画面の移動">
+    <a href="{{ url_for('index') }}">ホームへ戻る</a>
+  </nav>
 </div>
 {% endblock %}

@@ -1,0 +1,24 @@
+{% for shelter in results %}
+  {% set capacity = shelter.get('capacity', 0) %}
+  {% set current_count = shelter.get('current_count', 0) %}
+  {% set hazard_types = shelter.get('display_disaster_types', []) %}
+  {% set pet_status = shelter.get('display_pet_status', '未確認') %}
+  {% set accessibility_status = shelter.get('display_accessibility_status', '未確認') %}
+  <article class="shelter-card">
+    <h3>{{ shelter.get('name') or '名称未登録' }}</h3>
+    <dl class="shelter-facts">
+      <div><dt>地区・住所</dt><dd>{{ shelter.get('display_district') or shelter.get('district') or shelter.get('address') or '未登録' }}</dd></div>
+      <div><dt>開設状況</dt><dd>{{ shelter.get('shelter_status') or shelter.get('open_status') or shelter.get('status') or '未登録' }}</dd></div>
+      <div><dt>災害対応状況</dt><dd>{% if hazard_types %}{{ hazard_types|join('、') }}{% else %}未確認{% endif %}</dd></div>
+      <div><dt>ペット可否</dt><dd><span class="state-tag{% if pet_status == '可' %} available{% elif pet_status == '不可' %} unavailable{% else %} unknown{% endif %}">{{ pet_status }}</span></dd></div>
+      <div><dt>バリアフリー対応</dt><dd><span class="state-tag{% if accessibility_status == '可' %} available{% elif accessibility_status == '不可' %} unavailable{% else %} unknown{% endif %}">{{ accessibility_status }}</span></dd></div>
+      <div><dt>収容人数</dt><dd>{{ capacity or 0 }}人</dd></div>
+      <div><dt>現在の避難者数</dt><dd>{{ current_count or 0 }}人</dd></div>
+      <div><dt>その他の設備</dt><dd>{% set other_facilities = shelter.get('display_other_facilities', [])|reject('in', ['ペット可', 'バリアフリー'])|list %}{% if other_facilities %}{{ other_facilities|join('、') }}{% else %}未登録{% endif %}</dd></div>
+      <div><dt>補足情報</dt><dd>{{ shelter.get('supplemental_info') or '未登録' }}</dd></div>
+    </dl>
+    {% if session.get('logged_in') and shelter.get('id') is not none %}
+      <div class="shelter-card-actions"><a href="{{ url_for('edit_shelter', shelter_id=shelter.get('id')) }}">施設情報を更新</a></div>
+    {% endif %}
+  </article>
+{% endfor %}

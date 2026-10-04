@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}登録内容の確認 - 防災アプリ{% endblock %}
+
+{% block content %}
+<style>
+  .confirm-page { max-width: 850px; margin: 0 auto; padding: 8px 0 30px; }
+  .confirm-card { padding: 24px; background: #fff; border: 1px solid #cbd5e1; border-radius: 12px; }
+  .confirm-card h2 { margin-top: 0; color: #0f172a; }
+  .confirm-list { display: grid; grid-template-columns: minmax(150px, 1fr) 2fr; border-top: 1px solid #cbd5e1; }
+  .confirm-list dt, .confirm-list dd { margin: 0; padding: 12px 8px; border-bottom: 1px solid #cbd5e1; overflow-wrap: anywhere; }
+  .confirm-list dt { font-weight: 700; color: #334155; }
+  .confirm-error { padding: 12px; color: #7f1d1d; background: #fef2f2; border-left: 4px solid #b91c1c; font-weight: 700; }
+  .confirm-actions { display: flex; gap: 12px; margin-top: 22px; }
+  .confirm-actions button { flex: 1; min-height: 52px; padding: 12px; border-radius: 8px; font: inherit; font-weight: 700; cursor: pointer; }
+  .confirm-save { color: #fff; background: #075985; border: 2px solid #075985; }
+  .confirm-edit { color: #0f172a; background: #fff; border: 2px solid #475569; }
+  :focus-visible { outline: 3px solid #f59e0b; outline-offset: 2px; }
+  @media (max-width: 600px) {
+    .confirm-card { padding: 16px; }
+    .confirm-list { grid-template-columns: 1fr; }
+    .confirm-list dt { padding-bottom: 2px; border-bottom: 0; }
+    .confirm-list dd { padding-top: 3px; }
+    .confirm-actions { flex-direction: column; }
+  }
+</style>
+
+<main class="confirm-page">
+  <section class="confirm-card" aria-labelledby="confirm-title">
+    <h2 id="confirm-title">{% if is_edit %}避難所情報の更新内容を確認{% else %}避難所の登録内容を確認{% endif %}</h2>
+    <p>内容を確認してください。「この内容で{% if is_edit %}更新{% else %}登録{% endif %}」を選ぶまで、データは保存されません。</p>
+    {% if error %}<p class="confirm-error" role="alert">{{ error }}</p>{% endif %}
+    <dl class="confirm-list">
+      <dt>避難所名</dt><dd>{{ form_data.name }}</dd>
+      <dt>住所</dt><dd>{{ form_data.address }}</dd>
+      <dt>地区</dt><dd>{{ form_data.district or '未登録' }}</dd>
+      <dt>収容人数</dt><dd>{{ form_data.capacity if form_data.capacity is not none else '未登録' }}</dd>
+      <dt>対応できる災害</dt><dd>{{ form_data.disaster_types|join('、') if form_data.disaster_types else '未確認' }}</dd>
+      <dt>ペット可否</dt><dd>{{ form_data.pet_status }}</dd>
+      <dt>バリアフリー対応</dt><dd>{{ form_data.accessibility_status }}</dd>
+      <dt>開設状況</dt><dd>{{ form_data.shelter_status }}</dd>
+      <dt>その他の設備</dt><dd>{{ form_data.facilities|join('、') if form_data.facilities else '未登録' }}</dd>
+      <dt>補足情報</dt><dd>{{ form_data.supplemental_info or '未登録' }}</dd>
+      <dt>緯度・経度</dt><dd>{% if form_data.latitude is not none and form_data.longitude is not none %}{{ form_data.latitude }}, {{ form_data.longitude }}{% else %}未登録{% endif %}</dd>
+    </dl>
+    <div class="confirm-actions">
+      <form method="post" action="{% if is_edit %}{{ url_for('edit_shelter', shelter_id=shelter_id) }}{% else %}{{ url_for('shelter_register') }}{% endif %}">
+        <input type="hidden" name="token" value="{{ token }}">
+        <button class="confirm-save" type="submit" name="action" value="save">この内容で{% if is_edit %}更新{% else %}登録{% endif %}</button>
+      </form>
+      <form method="post" action="{% if is_edit %}{{ url_for('edit_shelter', shelter_id=shelter_id) }}{% else %}{{ url_for('shelter_register') }}{% endif %}">
+        <input type="hidden" name="token" value="{{ token }}">
+        <button class="confirm-edit" type="submit" name="action" value="edit">入力内容を修正</button>
+      </form>
+    </div>
+  </section>
+</main>
+{% endblock %}

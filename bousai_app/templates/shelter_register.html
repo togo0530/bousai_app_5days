@@ -1,50 +1,128 @@
 {% extends "base.html" %}
 
+{% block title %}{% if is_edit %}避難所情報の更新{% else %}避難所登録{% endif %} - 防災アプリ{% endblock %}
+
 {% block content %}
-<h2>避難所登録</h2>
-<p>新しい避難所情報を登録します。</p>
+{% set form_data = form_data|default({}) %}
+{% set field_errors = field_errors|default({}) %}
+<style>
+  .shelter-form-page { max-width: 850px; margin: 0 auto; padding: 8px 0 30px; }
+  .shelter-form-card { background: #fff; padding: 24px; border: 1px solid #cbd5e1; border-radius: 12px; }
+  .shelter-form-card h2 { margin-top: 0; color: #0f172a; }
+  .form-field { margin: 18px 0; }
+  .form-field > label, .form-legend { display: block; margin-bottom: 7px; font-weight: 700; }
+  .form-field input[type="text"], .form-field input[type="number"], .form-field select, .form-field textarea { width: 100%; min-height: 44px; padding: 9px 11px; border: 1px solid #64748b; border-radius: 7px; font: inherit; }
+  .checkbox-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+  .checkbox-option { display: flex; align-items: center; gap: 9px; min-height: 44px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 7px; cursor: pointer; }
+  .checkbox-option input { width: 20px; height: 20px; }
+  .field-help { margin: 6px 0 0; color: #334155; font-size: 14px; }
+  .form-error { padding: 12px; color: #7f1d1d; background: #fef2f2; border-left: 4px solid #b91c1c; font-weight: 700; }
+  .form-success { padding: 12px; color: #14532d; background: #f0fdf4; border-left: 4px solid #15803d; font-weight: 700; }
+  .primary-submit { width: 100%; min-height: 54px; padding: 12px 18px; color: #fff; background: #075985; border: 0; border-radius: 9px; font: inherit; font-weight: 700; cursor: pointer; }
+  .form-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+  .form-actions a { display: inline-flex; min-height: 44px; align-items: center; padding: 9px 14px; border: 1px solid #475569; border-radius: 7px; color: #0f172a; text-decoration: none; }
+  :focus-visible { outline: 3px solid #f59e0b; outline-offset: 2px; }
+  @media (max-width: 600px) { .shelter-form-card { padding: 16px; } .form-actions a { flex: 1 1 100%; justify-content: center; } }
+</style>
 
-<!-- 成功・エラーメッセージ表示 -->
-{% if success %}
-  <p>{{ message }}</p>
-{% endif %}
+<div class="shelter-form-page">
+  <section class="shelter-form-card">
+    <h2>{% if is_edit %}避難所情報の更新{% else %}避難所登録{% endif %}</h2>
+    <p>施設情報は自治体等の確認済み情報に基づいて登録してください。未確認の項目は「未確認」のままにしてください。</p>
+    {% if success %}<p class="form-success" role="status">{{ message }} <a href="{{ url_for('all_shelters') }}">施設一覧を見る</a></p>{% endif %}
+    {% if error %}<p class="form-error" role="alert">{{ message }}</p>{% endif %}
 
-{% if error %}
-  <p>{{ message }}</p>
-{% endif %}
-
-<form method="POST">
-  <p>
-    <label for="name">避難所名（必須）</label><br>
-    <input type="text" id="name" name="name">
-  </p>
-  <p>
-    <label for="address">住所（必須）</label><br>
-    <input type="text" id="address" name="address" placeholder="例：青森市新町1-2-3">
-  </p>
-  <p>
-    <label for="status">開設状況</label><br>
-    <select id="status" name="status">
-      <option value="開設中">開設中</option>
-      <option value="開設済み">開設済み</option>
-      <option value="一時閉鎖">一時閉鎖</option>
-    </select>
-  </p>
-  <p>
-    <label for="capacity">収容人数</label><br>
-    <input type="number" id="capacity" name="capacity" min="0" value="0">
-  </p>
-  <p>
-    <label for="current_count">現在の避難者数</label><br>
-    <input type="number" id="current_count" name="current_count" min="0" value="0">
-  </p>
-  <p>
-    <label>設備</label><br>
-    <label><input type="checkbox" name="facilities" value="ペット可"> ペット可</label>
-    <label><input type="checkbox" name="facilities" value="バリアフリー"> バリアフリー</label>
-    <label><input type="checkbox" name="facilities" value="高齢者対応"> 高齢者対応</label>
-    <label><input type="checkbox" name="facilities" value="子ども連れ対応"> 子ども連れ対応</label>
-  </p>
-  <p><button type="submit">登録</button></p>
-</form>
+    <form method="post" action="{% if is_edit %}{{ url_for('edit_shelter', shelter_id=shelter_id) }}{% else %}{{ url_for('shelter_register') }}{% endif %}">
+      <div class="form-field">
+        <label for="name">避難所名（必須・120文字以内）</label>
+        <input type="text" id="name" name="name" required maxlength="120" value="{{ form_data.get('name', '') }}" aria-invalid="{{ 'true' if field_errors.get('name') else 'false' }}"{% if field_errors.get('name') %} aria-describedby="name-error"{% endif %}>
+        {% if field_errors.get('name') %}<p id="name-error" class="form-error" role="alert">{{ field_errors.get('name') }}</p>{% endif %}
+      </div>
+      <div class="form-field">
+        <label for="district">地区名（任意・120文字以内）</label>
+        <input type="text" id="district" name="district" maxlength="120" value="{{ form_data.get('district', '') }}" aria-describedby="district-help{% if field_errors.get('district') %} district-error{% endif %}" aria-invalid="{{ 'true' if field_errors.get('district') else 'false' }}">
+        <p id="district-help" class="field-help">地区が分からない場合は空欄にできます。</p>
+        {% if field_errors.get('district') %}<p id="district-error" class="form-error" role="alert">{{ field_errors.get('district') }}</p>{% endif %}
+      </div>
+      <div class="form-field">
+        <label for="address">住所（必須・250文字以内）</label>
+        <input type="text" id="address" name="address" required maxlength="250" value="{{ form_data.get('address', '') }}" placeholder="例：青森市新町1-2-3" aria-invalid="{{ 'true' if field_errors.get('address') else 'false' }}"{% if field_errors.get('address') %} aria-describedby="address-error"{% endif %}>
+        {% if field_errors.get('address') %}<p id="address-error" class="form-error" role="alert">{{ field_errors.get('address') }}</p>{% endif %}
+      </div>
+      <div class="form-field">
+        <label for="shelter_status">避難所の開設状況</label>
+        {% set current_open_status = form_data.get('shelter_status', '未開設') %}
+        <select id="shelter_status" name="shelter_status" aria-invalid="{{ 'true' if field_errors.get('shelter_status') else 'false' }}"{% if field_errors.get('shelter_status') %} aria-describedby="shelter-status-error"{% endif %}>
+          {% for status in ['開設中', '未開設', '開設済み', '一時閉鎖', '閉鎖中'] %}
+            <option value="{{ status }}"{% if current_open_status == status %} selected{% endif %}>{{ status }}</option>
+          {% endfor %}
+        </select>
+        {% if field_errors.get('shelter_status') %}<p id="shelter-status-error" class="form-error" role="alert">{{ field_errors.get('shelter_status') }}</p>{% endif %}
+      </div>
+      <fieldset class="form-field">
+        <legend class="form-legend">対応が確認された災害種別</legend>
+        <p class="field-help" id="disaster-help">自治体等の確認済み情報に基づいて選択してください。未選択は未確認として扱われます。</p>
+        {% if field_errors.get('disaster_types') %}<p id="disaster-error" class="form-error" role="alert">{{ field_errors.get('disaster_types') }}</p>{% endif %}
+        <div class="checkbox-grid">
+          {% for disaster_type in disaster_types %}
+            <label class="checkbox-option"><input type="checkbox" name="disaster_types" value="{{ disaster_type }}"{% if disaster_type in form_data.get('disaster_types', []) %} checked{% endif %} aria-describedby="disaster-help{% if field_errors.get('disaster_types') %} disaster-error{% endif %}">{{ disaster_type }}</label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      <fieldset class="form-field">
+        <legend class="form-legend">設備の対応状況</legend>
+        {% for facility, field_name in [('ペット可', 'pet_status'), ('バリアフリー', 'accessibility_status')] %}
+          {% set selected_state = form_data.get(field_name, '未確認') %}
+          {% set error_id = field_name + '-error' %}
+          <div class="form-field">
+            <label for="{{ field_name }}">{{ facility }}</label>
+            <select id="{{ field_name }}" name="{{ field_name }}" aria-invalid="{{ 'true' if field_errors.get(field_name) else 'false' }}"{% if field_errors.get(field_name) %} aria-describedby="{{ error_id }}"{% endif %}>
+              {% for state in ['可', '不可', '未確認'] %}
+                <option value="{{ state }}"{% if selected_state == state %} selected{% endif %}>{{ state }}</option>
+              {% endfor %}
+            </select>
+            {% if field_errors.get(field_name) %}<p id="{{ error_id }}" class="form-error" role="alert">{{ field_errors.get(field_name) }}</p>{% endif %}
+          </div>
+        {% endfor %}
+      </fieldset>
+      <div class="form-field">
+        <label for="latitude">緯度（任意）</label>
+        <input type="number" id="latitude" name="latitude" min="40.4" max="41.3" step="any" value="{{ form_data.get('latitude', '') }}" placeholder="例：40.8244">
+      </div>
+      <div class="form-field">
+        <label for="longitude">経度（任意）</label>
+        <input type="number" id="longitude" name="longitude" min="140.3" max="141.3" step="any" value="{{ form_data.get('longitude', '') }}" placeholder="例：140.7400">
+        <p class="field-help">入力する場合は緯度・経度の両方が必要です。</p>
+      </div>
+      <div class="form-field">
+        <label for="capacity">収容人数</label>
+        <input type="number" id="capacity" name="capacity" min="0" max="999999999" step="1" value="{{ form_data.get('capacity', '') }}" aria-describedby="{% if field_errors.get('capacity') %}capacity-error{% else %}capacity-help{% endif %}" aria-invalid="{{ 'true' if field_errors.get('capacity') else 'false' }}">
+        <p id="capacity-help" class="field-help">未入力の場合は未登録です。入力する場合は0以上の整数を入力してください。</p>
+        {% if field_errors.get('capacity') %}<p id="capacity-error" class="form-error" role="alert">{{ field_errors.get('capacity') }}</p>{% endif %}
+      </div>
+      <div class="form-field">
+        <label for="current_count">現在の避難者数</label>
+        <input type="number" id="current_count" name="current_count" min="0" max="999999999" step="1" value="{{ form_data.get('current_count', '') }}" aria-invalid="{{ 'true' if field_errors.get('current_count') else 'false' }}"{% if field_errors.get('current_count') %} aria-describedby="current-count-error"{% endif %}>
+        {% if field_errors.get('current_count') %}<p id="current-count-error" class="form-error" role="alert">{{ field_errors.get('current_count') }}</p>{% endif %}
+      </div>
+      <fieldset class="form-field">
+        <legend class="form-legend">その他の設備</legend>
+        <div class="checkbox-grid">
+          {% for facility in ['高齢者対応', '子ども連れ対応'] %}
+            <label class="checkbox-option"><input type="checkbox" name="facilities" value="{{ facility }}"{% if facility in form_data.get('facilities', []) %} checked{% endif %} aria-describedby="{% if field_errors.get('facilities') %}facilities-error{% endif %}">{{ facility }}</label>
+          {% endfor %}
+        </div>
+        {% if field_errors.get('facilities') %}<p id="facilities-error" class="form-error" role="alert">{{ field_errors.get('facilities') }}</p>{% endif %}
+      </fieldset>
+      <div class="form-field">
+        <label for="supplemental_info">施設・設備に関する補足情報（任意・2000文字以内）</label>
+        <textarea id="supplemental_info" name="supplemental_info" maxlength="2000" rows="5" aria-describedby="supplemental-help{% if field_errors.get('supplemental_info') %} supplemental-error{% endif %}">{{ form_data.get('supplemental_info', '') }}</textarea>
+        <p id="supplemental-help" class="field-help">案内事項などを入力できます。</p>
+        {% if field_errors.get('supplemental_info') %}<p id="supplemental-error" class="form-error" role="alert">{{ field_errors.get('supplemental_info') }}</p>{% endif %}
+      </div>
+      <button class="primary-submit" type="submit" name="action" value="confirm">入力内容を確認</button>
+    </form>
+    <div class="form-actions"><a href="{{ url_for('all_shelters') }}">施設一覧へ戻る</a><a href="{{ url_for('index') }}">ホームへ戻る</a></div>
+  </section>
+</div>
 {% endblock %}

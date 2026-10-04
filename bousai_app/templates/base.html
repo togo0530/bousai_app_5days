@@ -281,12 +281,76 @@
     .menu-panel a:hover {
       background: #f3f8ff;
     }
-    @media (max-width: 760px) {
+    .topbar {
+      min-height: 64px;
+      height: auto;
+      gap: 20px;
+    }
+    .menu-button { display: none; flex-shrink: 0; }
+    .menu-panel {
+      position: static;
+      min-width: 0;
+      background: transparent;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      overflow: visible;
+    }
+    .menu-panel a {
+      display: inline-block;
+      padding: 10px 12px;
+      color: #fff;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      white-space: nowrap;
+    }
+    .menu-panel a:hover,
+    .menu-panel a[aria-current="page"] {
+      color: #0d4273;
+      background: #fff;
+    }
+    .login-state {
+      padding: 0 8px;
+      color: #dbeafe;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    @media (max-width: 960px) {
       .content-wrap { margin-top: 18px; padding: 0 12px 28px; }
       .topbar { padding: 0 18px; }
       .brand { font-size: 22px; }
       .weather-title { font-size: 22px; }
       .weather-header { flex-direction: column; align-items: flex-start; }
+      .menu-button { display: block; }
+      .menu-panel {
+        position: absolute;
+        top: 42px;
+        right: 0;
+        min-width: 230px;
+        background: #fff;
+        border: 1px solid rgba(148, 163, 184, .45);
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(15, 23, 42, .15);
+        display: none;
+        overflow: hidden;
+        z-index: 20;
+      }
+      .menu-panel.open { display: block; }
+      .menu-panel a {
+        display: block;
+        padding: 13px 16px;
+        color: #0f172a;
+        border-bottom: 1px solid #eef2f7;
+        border-radius: 0;
+        background: #fff;
+      }
+      .menu-panel a:hover,
+      .menu-panel a[aria-current="page"] { color: #0d4273; background: #eff6ff; }
+      .login-state { display: block; padding: 11px 16px; color: #475569; border-bottom: 1px solid #eef2f7; }
     }
   </style>
 </head>
@@ -294,20 +358,21 @@
   <header class="topbar">
     <h1 class="brand">防災アプリ</h1>
     <div class="menu-wrapper">
-      <button class="menu-button" aria-label="メニュー" aria-expanded="false">
+      <button class="menu-button" type="button" aria-label="メニュー" aria-controls="main-navigation" aria-expanded="false">
         <span></span>
         <span></span>
         <span></span>
       </button>
-      <nav class="menu-panel" aria-label="メインメニュー">
-        <a href="/">ホーム</a>
-        <a href="/shelter_search">避難所検索</a>
-        <a href="/shelter_register">避難所登録</a>
-        <a href="/board">指示・発信ボード</a>
+      <nav id="main-navigation" class="menu-panel" aria-label="メインメニュー">
+        <a href="{{ url_for('index') }}"{% if request.endpoint == 'index' %} aria-current="page"{% endif %}>ホーム</a>
+        <a href="{{ url_for('shelter_search') }}"{% if request.endpoint in ['shelter_search', 'all_shelters', 'search_results', 'get_shelters'] %} aria-current="page"{% endif %}>避難所検索</a>
+        <a href="{{ url_for('shelter_register') }}"{% if request.endpoint in ['shelter_register', 'edit_shelter', 'delete_shelter'] %} aria-current="page"{% endif %}>避難所登録</a>
+        <a href="{{ url_for('board') }}"{% if request.endpoint == 'board' %} aria-current="page"{% endif %}>指示ボード</a>
         {% if session.get('logged_in') %}
-          <a href="/logout">ログアウト</a>
+          <span class="login-state">ログイン中: {{ session.get('username', '利用者') }}</span>
+          <a href="{{ url_for('logout') }}">ログアウト</a>
         {% else %}
-          <a href="/login">ログイン</a>
+          <a href="{{ url_for('login') }}"{% if request.endpoint == 'login' %} aria-current="page"{% endif %}>ログイン</a>
         {% endif %}
       </nav>
     </div>
@@ -329,9 +394,22 @@
         });
 
         document.addEventListener('click', function (event) {
-          if (!event.target.closest('.menu-wrapper')) {
+          if (event.target instanceof Element && !event.target.closest('.menu-wrapper')) {
             menuPanel.classList.remove('open');
             menuButton.setAttribute('aria-expanded', 'false');
+          }
+        });
+        menuPanel.addEventListener('click', function (event) {
+          if (event.target instanceof Element && event.target.closest('a') && window.matchMedia('(max-width: 960px)').matches) {
+            menuPanel.classList.remove('open');
+            menuButton.setAttribute('aria-expanded', 'false');
+          }
+        });
+        document.addEventListener('keydown', function (event) {
+          if (event.key === 'Escape') {
+            menuPanel.classList.remove('open');
+            menuButton.setAttribute('aria-expanded', 'false');
+            menuButton.focus();
           }
         });
       }
