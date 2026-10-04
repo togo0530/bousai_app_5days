@@ -18,6 +18,33 @@
     <label for="name">避難所名（必須）</label><br>
     <input type="text" id="name" name="name">
   </p>
+  <p>
+    <label for="address">住所（必須）</label><br>
+    <input type="text" id="address" name="address" placeholder="例：青森市新町1-2-3">
+  </p>
+  <p>
+    <label for="status">開設状況</label><br>
+    <select id="status" name="status">
+      <option value="開設中">開設中</option>
+      <option value="開設済み">開設済み</option>
+      <option value="一時閉鎖">一時閉鎖</option>
+    </select>
+  </p>
+  <p>
+    <label for="capacity">収容人数</label><br>
+    <input type="number" id="capacity" name="capacity" min="0" value="0">
+  </p>
+  <p>
+    <label for="current_count">現在の避難者数</label><br>
+    <input type="number" id="current_count" name="current_count" min="0" value="0">
+  </p>
+  <p>
+    <label>設備</label><br>
+    <label><input type="checkbox" name="facilities" value="ペット可"> ペット可</label>
+    <label><input type="checkbox" name="facilities" value="バリアフリー"> バリアフリー</label>
+    <label><input type="checkbox" name="facilities" value="高齢者対応"> 高齢者対応</label>
+    <label><input type="checkbox" name="facilities" value="子ども連れ対応"> 子ども連れ対応</label>
+  </p>
   <p><button type="submit">登録</button></p>
 </form>
 {% endblock %}

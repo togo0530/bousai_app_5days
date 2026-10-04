@@ -1,22 +1,47 @@
 [
   {
     "id": 1,
-    "name": "御所見小学校"
+    "name": "御所見小学校",
+    "address": "青森市大字新城字御所見",
+    "status": "開設中",
+    "capacity": 80,
+    "current_count": 52,
+    "facilities": ["バリアフリー", "高齢者対応"]
   },
   {
     "id": 2,
-    "name": "片瀬小学校"
+    "name": "片瀬小学校",
+    "address": "青森市片瀬町2丁目",
+    "status": "開設中",
+    "capacity": 120,
+    "current_count": 80,
+    "facilities": ["ペット可"]
   },
   {
     "id": 5,
-    "name": "鵠洋小学校"
+    "name": "鵠洋小学校",
+    "address": "青森市滝沢字鵠洋",
+    "status": "開設済み",
+    "capacity": 90,
+    "current_count": 67,
+    "facilities": ["バリアフリー", "子ども連れ対応"]
   },
   {
     "id": 11,
-    "name": "青森高校"
+    "name": "青森高校",
+    "address": "青森市大字本町1-1",
+    "status": "開設中",
+    "capacity": 140,
+    "current_count": 110,
+    "facilities": ["ペット可", "バリアフリー", "高齢者対応"]
   },
   {
     "id": 12,
-    "name": "青森高校"
+    "name": "青森高校",
+    "address": "青森市大字本町1-1",
+    "status": "開設中",
+    "capacity": 140,
+    "current_count": 141,
+    "facilities": ["ペット可", "バリアフリー"]
   }
 ]

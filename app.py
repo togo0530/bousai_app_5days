@@ -298,14 +298,36 @@ def logout():
 def shelter_register():
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
+        address = request.form.get('address', '').strip()
+        status = request.form.get('status', '').strip() or '開設中'
+        capacity = request.form.get('capacity', '').strip()
+        current_count = request.form.get('current_count', '').strip()
+        facilities = request.form.getlist('facilities')
 
         if not name:
             return render_template('shelter_register.html', error=True, message='避難所名を入力してください。')
+        if not address:
+            return render_template('shelter_register.html', error=True, message='住所を入力してください。')
+
+        try:
+            capacity_value = int(capacity) if capacity else 0
+        except ValueError:
+            capacity_value = 0
+
+        try:
+            current_value = int(current_count) if current_count else 0
+        except ValueError:
+            current_value = 0
 
         next_id = max((s.get('id', 0) for s in shelters), default=0) + 1
         shelters.append({
             'id': next_id,
             'name': name,
+            'address': address,
+            'status': status,
+            'capacity': capacity_value,
+            'current_count': current_value,
+            'facilities': facilities,
         })
         save_shelters()
         return render_template('shelter_register.html', success=True, message='避難所を登録しました。')
