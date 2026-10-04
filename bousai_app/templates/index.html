@@ -16,6 +16,7 @@
   .notice-label.normal { background: #475569; }
   .section-tools { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
   .section-tools label { display: grid; gap: 5px; font-weight: 700; }
+  .filter-help { margin: 8px 0; color: #334155; font-size: 14px; }
   .section-tools select, .section-tools button, .map-tools button { min-height: 40px; padding: 8px 12px; border: 1px solid #64748b; border-radius: 7px; background: #fff; color: #0f172a; font: inherit; cursor: pointer; }
   .section-tools button, .map-tools button { background: #eaf3ff; border-color: #1d4ed8; }
   .map-frame { height: 360px; }
@@ -47,18 +48,32 @@
 
 <section id="emergencyPanel" class="home-section emergency-panel" aria-labelledby="emergency-title"{% if not latest_broadcasts and not resident_notices %} hidden{% endif %}>
   <h2 id="emergency-title">緊急のお知らせ</h2>
+  <div class="section-tools">
+    <label for="emergencyPeriodFilter">表示期間
+      <select id="emergencyPeriodFilter">
+        <option value="today" selected>当日のみ</option>
+        <option value="week">過去1週間</option>
+        <option value="month">過去1か月</option>
+        <option value="halfyear">過去半年</option>
+        <option value="year">過去1年</option>
+      </select>
+    </label>
+    <span class="filter-help">日付は日本時間（JST）基準です。日時を読み取れない情報は期間表示の対象外です。</span>
+  </div>
   <div id="emergencyNotices">
-    {% for item in latest_broadcasts %}
+    {% set today_broadcasts = latest_broadcasts|selectattr('display_date', 'equalto', today_jst)|list %}
+    {% set today_resident_notices = resident_notices|selectattr('display_date', 'equalto', today_jst)|list %}
+    {% for item in today_broadcasts[:5] %}
       <article class="broadcast-home-item emergency-content">
         <span class="notice-label">発信</span><strong>{{ item.title }}</strong>
-        <div class="instruction-meta"><span>{{ item.published_at }}</span><span>対象: {{ item.target }}{% if item.district %}（{{ item.district }}）{% endif %}{% if item.shelter %}（{{ item.shelter }}）{% endif %}</span></div>
+        <div class="instruction-meta"><span>{{ item.display_time }}</span><span>対象: {{ item.target }}{% if item.district %}（{{ item.district }}）{% endif %}{% if item.shelter %}（{{ item.shelter }}）{% endif %}</span></div>
         <div class="language-content">
           <p class="normal-text">{{ item.content }}</p>
           {% if item.simple_content %}<p class="simple-text" hidden>{{ item.simple_content }}</p>{% else %}<p class="simple-text" hidden>やさしい日本語は未登録です。通常の内容: {{ item.content }}</p>{% endif %}
         </div>
       </article>
     {% endfor %}
-    {% for notice in resident_notices %}
+    {% for notice in today_resident_notices[:5] %}
       <article class="emergency-item instruction-emergency emergency-content{% if notice.urgent %} urgent{% endif %}">
         <span class="notice-label">指示</span><span class="notice-label normal">緊急度: {{ notice.display_priority }}</span>
         <div class="language-content"><p class="normal-text">{{ notice.display_content }}</p>{% if notice.display_simple_content %}<p class="simple-text" hidden>{{ notice.display_simple_content }}</p>{% else %}<p class="simple-text" hidden>やさしい日本語は未登録です。通常の内容: {{ notice.display_content }}</p>{% endif %}</div>
@@ -68,16 +83,32 @@
         </div>
       </article>
     {% endfor %}
-    <div id="weatherEmergency"></div>
+    {% if (latest_broadcasts or resident_notices) and not (today_broadcasts or today_resident_notices) %}
+      <p class="empty-state">選択した期間の緊急のお知らせはありません。</p>
+    {% endif %}
   </div>
+  <div id="weatherEmergency"></div>
   <a href="#weather-section">気象情報を見る</a> ・ <a href="#disaster-info">災害情報一覧を見る</a>
 </section>
 
 <section class="home-section" aria-labelledby="new-instructions-title">
   <h2 id="new-instructions-title">新着指示</h2>
+  <div class="section-tools">
+    <label for="latestInstructionPeriodFilter">表示期間
+      <select id="latestInstructionPeriodFilter">
+        <option value="today" selected>当日のみ</option>
+        <option value="week">過去1週間</option>
+        <option value="month">過去1か月</option>
+        <option value="halfyear">過去半年</option>
+        <option value="year">過去1年</option>
+      </select>
+    </label>
+    <span class="filter-help">日付は日本時間（JST）基準です。</span>
+  </div>
   <div id="latestInstructions">
-    {% if latest_notices %}
-      {% for notice in latest_notices %}
+    {% set today_latest_notices = resident_notices|selectattr('display_date', 'equalto', today_jst)|list %}
+    {% if today_latest_notices %}
+      {% for notice in today_latest_notices[:5] %}
         <article class="instruction-card emergency-content{% if notice.urgent %} urgent{% endif %}{% if notice.display_status in ['解除', '完了', '解除済み', '完了済み'] %} closed{% endif %}">
           {% if notice.urgent %}<span class="notice-label">緊急</span>{% endif %}
           {% if notice.display_status in ['解除', '完了', '解除済み', '完了済み'] %}<span class="notice-label normal">{{ notice.display_status }}</span>{% endif %}
@@ -87,7 +118,7 @@
         </article>
       {% endfor %}
     {% else %}
-      <p class="empty-state">住民向けの指示はありません。</p>
+      <p class="empty-state">選択した期間の新着指示はありません。</p>
     {% endif %}
   </div>
   <a href="{{ url_for('board') }}">指示ボードで確認する</a>
@@ -102,13 +133,24 @@
         {% for disaster_type in disaster_types %}<option value="{{ disaster_type }}">{{ disaster_type }}</option>{% endfor %}
       </select>
     </label>
+    <label for="disasterPeriodFilter">表示期間
+      <select id="disasterPeriodFilter">
+        <option value="today" selected>当日のみ</option>
+        <option value="week">過去1週間</option>
+        <option value="month">過去1か月</option>
+        <option value="halfyear">過去半年</option>
+        <option value="year">過去1年</option>
+      </select>
+    </label>
     <button id="refreshDisasterInfo" type="button">災害情報を更新</button>
     <span id="instructionUpdatedAt">最終更新: {{ last_instruction_update }}</span>
   </div>
+  <p class="filter-help">日付は日本時間（JST）を基準にします。日時を判定できない情報は期間別の一覧には表示されません。</p>
   <div id="disasterInfoList">
-    {% if resident_notices %}
-      {% for notice in resident_notices %}
-        <article class="instruction-card emergency-content{% if notice.urgent %} urgent{% endif %}{% if notice.display_status in ['解除', '完了', '解除済み', '完了済み'] %} closed{% endif %}" data-type="{{ notice.display_type }}">
+    {% set today_notices = resident_notices|selectattr('display_date', 'equalto', today_jst)|list %}
+    {% if today_notices %}
+      {% for notice in today_notices %}
+        <article class="instruction-card emergency-content{% if notice.urgent %} urgent{% endif %}{% if notice.display_status in ['解除', '完了', '解除済み', '完了済み'] %} closed{% endif %}" data-type="{{ notice.display_type }}" data-date="{{ notice.display_date }}">
           {% if notice.urgent %}<span class="notice-label">緊急</span>{% endif %}
           <strong>{{ notice.display_icon }} {{ notice.display_type }}{% if notice.inferred_type %}（内容から推定）{% endif %}</strong>
           <p class="normal-text">{{ notice.display_content }}</p>
@@ -117,7 +159,7 @@
         </article>
       {% endfor %}
     {% else %}
-      <p class="empty-state">災害情報はありません。</p>
+      <p class="empty-state">選択した期間の災害情報はありません。</p>
     {% endif %}
   </div>
 </section>
@@ -168,6 +210,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const mapShelters = {{ map_shelters|tojson }};
   let instructions = initialInstructions;
   let broadcasts = initialBroadcasts;
+  let todayJst = {{ today_jst|tojson }};
   let useSimpleJapanese = false;
   let useLargeText = false;
 
@@ -219,7 +262,7 @@ document.addEventListener('DOMContentLoaded', function () {
     addTextElement(card, 'strong', item.title || 'タイトル未登録');
     const meta = document.createElement('div');
     meta.className = 'instruction-meta';
-    addTextElement(meta, 'span', item.published_at || '日時不明');
+    addTextElement(meta, 'span', item.display_time || item.published_at || '日時不明');
     addTextElement(meta, 'span', '対象: ' + (item.target || '未登録') +
       (item.district ? '（' + item.district + '）' : '') +
       (item.shelter ? '（' + item.shelter + '）' : ''));
@@ -236,27 +279,71 @@ document.addEventListener('DOMContentLoaded', function () {
     const hasNotices = broadcasts.length > 0 || instructions.length > 0;
     panel.hidden = !hasNotices;
     if (!hasNotices) return;
-    broadcasts.slice(0, 5).forEach(item => container.appendChild(makeBroadcastCard(item)));
-    instructions.slice(0, 5).forEach(item => container.appendChild(makeInstructionCard(item, false)));
+    const period = document.getElementById('emergencyPeriodFilter').value;
+    const cutoff = periodStartDate(todayJst, period);
+    const inPeriod = item => item.display_date
+      && item.display_date >= cutoff
+      && item.display_date <= todayJst;
+    const matchingBroadcasts = broadcasts.filter(inPeriod);
+    const matchingInstructions = instructions.filter(inPeriod);
+    if (!matchingBroadcasts.length && !matchingInstructions.length) {
+      addTextElement(container, 'p', '選択した期間の緊急のお知らせはありません。', 'empty-state');
+      return;
+    }
+    matchingBroadcasts.slice(0, 5).forEach(item => container.appendChild(makeBroadcastCard(item)));
+    matchingInstructions.slice(0, 5).forEach(item => container.appendChild(makeInstructionCard(item, false)));
   }
 
   function renderInstructions() {
-    const filter = document.getElementById('disasterTypeFilter').value;
+    const typeFilter = document.getElementById('disasterTypeFilter').value;
+    const periodFilter = document.getElementById('disasterPeriodFilter').value;
     const list = document.getElementById('disasterInfoList');
     list.replaceChildren();
-    const matching = instructions.filter(item => !filter || item.display_type === filter);
-    if (!matching.length) addTextElement(list, 'p', '該当する災害情報はありません。', 'empty-state');
+    const cutoff = periodStartDate(todayJst, periodFilter);
+    const matching = instructions.filter(item =>
+      item.display_date
+      && item.display_date >= cutoff
+      && item.display_date <= todayJst
+      && (!typeFilter || item.display_type === typeFilter)
+    );
+    if (!matching.length) {
+      addTextElement(list, 'p', '選択した期間に該当する災害情報はありません。', 'empty-state');
+    }
     matching.forEach(item => list.appendChild(makeInstructionCard(item, true)));
 
     const latest = document.getElementById('latestInstructions');
     latest.replaceChildren();
-    if (!instructions.length) {
-      addTextElement(latest, 'p', '住民向けの指示はありません。', 'empty-state');
+    const latestPeriod = document.getElementById('latestInstructionPeriodFilter').value;
+    const latestCutoff = periodStartDate(todayJst, latestPeriod);
+    const latestMatching = instructions.filter(item =>
+      item.display_date
+      && item.display_date >= latestCutoff
+      && item.display_date <= todayJst
+    );
+    if (!latestMatching.length) {
+      addTextElement(latest, 'p', '選択した期間の新着指示はありません。', 'empty-state');
     } else {
-      instructions.slice(0, 5).forEach(item => latest.appendChild(makeInstructionCard(item, false)));
+      latestMatching.slice(0, 5).forEach(item => latest.appendChild(makeInstructionCard(item, false)));
     }
     renderEmergencyNotices();
     applyReaderSettings();
+  }
+
+  function periodStartDate(today, period) {
+    if (period === 'today') return today;
+    const parts = today.split('-').map(Number);
+    const date = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+    if (period === 'week') {
+      date.setUTCDate(date.getUTCDate() - 6);
+    } else {
+      const months = period === 'month' ? 1 : period === 'halfyear' ? 6 : 12;
+      const targetMonthIndex = date.getUTCMonth() - months;
+      const targetYear = date.getUTCFullYear() + Math.floor(targetMonthIndex / 12);
+      const normalizedMonth = ((targetMonthIndex % 12) + 12) % 12;
+      const lastDay = new Date(Date.UTC(targetYear, normalizedMonth + 1, 0)).getUTCDate();
+      date.setUTCFullYear(targetYear, normalizedMonth, Math.min(date.getUTCDate(), lastDay));
+    }
+    return date.toISOString().slice(0, 10);
   }
 
   function applyReaderSettings() {
@@ -287,6 +374,10 @@ document.addEventListener('DOMContentLoaded', function () {
   applyReaderSettings();
 
   document.getElementById('disasterTypeFilter').addEventListener('change', renderInstructions);
+  document.getElementById('disasterPeriodFilter').addEventListener('change', renderInstructions);
+  document.getElementById('latestInstructionPeriodFilter').addEventListener('change', renderInstructions);
+  document.getElementById('emergencyPeriodFilter').addEventListener('change', renderEmergencyNotices);
+  renderInstructions();
   document.getElementById('refreshDisasterInfo').addEventListener('click', async function () {
     const button = this;
     button.disabled = true;
@@ -296,6 +387,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const data = await response.json();
       instructions = data.instructions;
       broadcasts = data.broadcasts;
+      todayJst = data.today_jst;
       const select = document.getElementById('disasterTypeFilter');
       const selectedType = select.value;
       const types = [...new Set(instructions.map(item => item.display_type))].sort();

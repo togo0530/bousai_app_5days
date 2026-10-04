@@ -88,7 +88,7 @@ def test_register_shelter_with_address_and_status(monkeypatch):
     assert any(shelter['address'] == '青森市新町1-2-3' and shelter['status'] == '開設中' for shelter in app_module.shelters)
 
 
-def test_register_shelter_saves_open_status_and_coordinates(monkeypatch):
+def test_register_shelter_does_not_accept_coordinate_fields(monkeypatch):
     client = app_module.app.test_client()
     with client.session_transaction() as session:
         session['logged_in'] = True
@@ -106,15 +106,17 @@ def test_register_shelter_saves_open_status_and_coordinates(monkeypatch):
 
     assert response.status_code == 200
     assert app_module.shelters[0]['shelter_status'] == '開設中'
-    assert app_module.shelters[0]['latitude'] == 40.8244
-    assert app_module.shelters[0]['longitude'] == 140.7400
+    assert 'latitude' not in app_module.shelters[0]
+    assert 'longitude' not in app_module.shelters[0]
+    assert 'latitude' not in response.get_data(as_text=True)
+    assert 'longitude' not in response.get_data(as_text=True)
 
 
 def test_home_shows_resident_disaster_info_and_only_aomori_markers(monkeypatch):
     monkeypatch.setattr(app_module, 'instructions', [
         {
             'target': '住民', 'content': '危険です。直ちに避難してください',
-            'status': '発表中', 'created_at': '2026年10月03日 12:00',
+            'status': '発表中', 'created_at': '2026年10月04日 12:00',
         },
         {
             'target': '防災課', 'content': '内部確認してください',
@@ -122,7 +124,7 @@ def test_home_shows_resident_disaster_info_and_only_aomori_markers(monkeypatch):
         },
         {
             'audience': '住民向け', 'message': '解除済みのお知らせ',
-            'instruction_status': '解除', 'published_at': 'not-a-date',
+            'instruction_status': '解除', 'published_at': '2026-10-04T10:00:00+09:00',
         },
     ])
     monkeypatch.setattr(app_module, 'shelters', [
@@ -143,6 +145,12 @@ def test_home_shows_resident_disaster_info_and_only_aomori_markers(monkeypatch):
             'latitude': 40.8244, 'longitude': 140.7400,
         },
     ])
+    monkeypatch.setattr(
+        app_module, 'datetime',
+        type('FixedDateTime', (app_module.datetime,), {
+            'now': classmethod(lambda cls, tz=None: cls(2026, 10, 4, 12, 0, tzinfo=tz))
+        })
+    )
 
     response = app_module.app.test_client().get('/')
     html = response.get_data(as_text=True)
@@ -530,13 +538,15 @@ def test_editing_own_name_is_allowed_and_keeps_existing_fields(monkeypatch):
 
     response = confirm_and_save(client, '/shelter_edit/1', {
         'name': '既存避難所', 'address': '新しい住所',
-        'latitude': '40.8', 'longitude': '140.8',
+        'latitude': '40.9', 'longitude': '140.9',
         'supplemental_info': 'updated note',
     })
     assert response.status_code == 200
     assert len(app_module.shelters) == 1
     assert app_module.shelters[0]['id'] == 1
     assert app_module.shelters[0]['created_at'] == 'created'
+    assert app_module.shelters[0]['latitude'] == 40.8
+    assert app_module.shelters[0]['longitude'] == 140.8
 
 
 def test_shelter_save_persists_atomically_to_existing_json_format(tmp_path, monkeypatch):
@@ -575,6 +585,30 @@ def test_board_requires_login_while_home_remains_public():
     assert '/login' in response.headers['Location']
     response = client.post('/board', data={'action': 'register_instruction'})
     assert response.status_code == 302
+
+
+def test_board_sections_are_collapsed_and_open_for_broadcast_preview(monkeypatch):
+    client = app_module.app.test_client()
+    with client.session_transaction() as session:
+        session['logged_in'] = True
+    monkeypatch.setattr(app_module, 'instructions', [])
+    monkeypatch.setattr(app_module, 'broadcasts', [])
+    page = client.get('/board').get_data(as_text=True)
+    assert page.count('<details class="board-panel"') == 4
+    assert '指示一覧<span class="summary-hint">0件・緊急度（高→中→低）' in page
+    assert '発信履歴<span class="summary-hint">0件・新しい順' in page
+    assert '<details class="board-panel" aria-labelledby="instruction-form-title" open' not in page
+    assert '<details class="board-panel" aria-labelledby="broadcast-form-title" open' not in page
+    assert '<details class="board-panel" aria-labelledby="instruction-list-title" open' not in page
+    assert '<details class="board-panel" aria-labelledby="broadcast-history-title" open' not in page
+
+    csrf = board_csrf_token(client)
+    preview = client.post('/board', data={
+        'csrf_token': csrf, 'action': 'preview_broadcast',
+        'broadcast_target': '住民全体', 'title': '確認タイトル',
+        'broadcast_content': '確認本文',
+    }).get_data(as_text=True)
+    assert '<details class="board-panel" aria-labelledby="broadcast-form-title" open' in preview
 
 
 def test_instruction_registration_validates_saves_and_sorts(monkeypatch):
@@ -791,6 +825,12 @@ def test_home_api_and_view_share_only_resident_instructions_and_latest_broadcast
     monkeypatch.setattr(app_module, 'instructions', saved_instructions)
     monkeypatch.setattr(app_module, 'broadcasts', saved_broadcasts)
     monkeypatch.setattr(app_module, 'shelters', [])
+    monkeypatch.setattr(
+        app_module, 'datetime',
+        type('FixedDateTime', (app_module.datetime,), {
+            'now': classmethod(lambda cls, tz=None: cls(2026, 10, 4, 12, 0, tzinfo=tz))
+        })
+    )
 
     client = app_module.app.test_client()
     response = client.get('/api/disaster_info')
@@ -798,13 +838,210 @@ def test_home_api_and_view_share_only_resident_instructions_and_latest_broadcast
     assert response.status_code == 200
     assert len(data['instructions']) == 6
     assert all(item['display_recipient'] == '住民' for item in data['instructions'])
-    assert len(data['broadcasts']) == 5
+    assert len(data['broadcasts']) == 7
     home = client.get('/').get_data(as_text=True)
     assert home.count('class="broadcast-home-item emergency-content"') == 5
     assert '職員</span>' not in home
     assert 'やさしい日本語' in home
     assert 'aria-pressed="true"' in home
     assert '10分おき自動更新' in home
+
+
+def test_emergency_notices_initially_show_only_today_and_filter_periods(monkeypatch):
+    monkeypatch.setattr(app_module, 'instructions', [
+        {
+            'target': '住民', 'content': '本日の緊急指示',
+            'created_at': '2026-10-04T00:15:00+09:00',
+        },
+        {
+            'target': '住民', 'content': '先週の緊急指示',
+            'created_at': '2026-09-28T23:59:00+09:00',
+        },
+    ])
+    monkeypatch.setattr(app_module, 'broadcasts', [
+        {
+            'target': '住民全体', 'title': '本日の発信',
+            'content': '本日の内容',
+            'published_at': '2026-10-04T01:00:00+09:00',
+        },
+        {
+            'target': '住民全体', 'title': '先週の発信',
+            'content': '先週の内容',
+            'published_at': '2026-09-28T23:00:00+09:00',
+        },
+        {
+            'target': '職員', 'title': '内部発信',
+            'content': '内部向け',
+            'published_at': '2026-10-04T02:00:00+09:00',
+        },
+    ])
+    monkeypatch.setattr(
+        app_module, 'datetime',
+        type('FixedDateTime', (app_module.datetime,), {
+            'now': classmethod(lambda cls, tz=None: cls(2026, 10, 4, 12, 0, tzinfo=tz))
+        })
+    )
+
+    response = app_module.app.test_client().get('/')
+    html = response.get_data(as_text=True)
+    emergency_list = html.split('<div id="emergencyNotices">', 1)[1].split(
+        '<div id="weatherEmergency">', 1
+    )[0]
+    assert response.status_code == 200
+    assert '本日の緊急指示' in emergency_list
+    assert '本日の発信' in emergency_list
+    assert '先週の緊急指示' not in emergency_list
+    assert '先週の発信' not in emergency_list
+    assert '内部発信' not in emergency_list
+    assert 'id="emergencyPeriodFilter"' in html
+    assert '<option value="today" selected>当日のみ</option>' in html
+    assert '<option value="week">過去1週間</option>' in html
+    assert '<option value="month">過去1か月</option>' in html
+    assert '<option value="halfyear">過去半年</option>' in html
+    assert '<option value="year">過去1年</option>' in html
+
+
+def test_emergency_notices_show_empty_message_when_no_notice_in_selected_period(monkeypatch):
+    monkeypatch.setattr(app_module, 'instructions', [{
+        'target': '住民', 'content': '過去の指示',
+        'created_at': '2026-07-14T18:38:00+09:00',
+    }])
+    monkeypatch.setattr(app_module, 'broadcasts', [{
+        'target': '住民全体', 'title': '過去の発信',
+        'content': '過去の内容',
+        'published_at': '2026-07-14T18:38:00+09:00',
+    }])
+    monkeypatch.setattr(
+        app_module, 'datetime',
+        type('FixedDateTime', (app_module.datetime,), {
+            'now': classmethod(lambda cls, tz=None: cls(2026, 10, 4, 12, 0, tzinfo=tz))
+        })
+    )
+
+    response = app_module.app.test_client().get('/')
+    html = response.get_data(as_text=True)
+    emergency_list = html.split('<div id="emergencyNotices">', 1)[1].split('</div>', 1)[0]
+    assert response.status_code == 200
+    assert '選択した期間の緊急のお知らせはありません。' in emergency_list
+    assert '過去の指示' not in emergency_list
+    assert '過去の発信' not in emergency_list
+
+
+def test_disaster_information_initially_shows_only_jst_today_and_exposes_period_filters(monkeypatch):
+    monkeypatch.setattr(app_module, 'instructions', [
+        {
+            'target': '住民', 'content': '本日の指示',
+            'created_at': '2026-10-04T00:15:00+09:00',
+        },
+        {
+            'target': '住民', 'content': '前日の指示',
+            'created_at': '2026-10-03T23:59:00+09:00',
+        },
+        {
+            'target': '住民', 'content': '日時不明の指示',
+            'created_at': 'invalid-date',
+        },
+    ])
+    monkeypatch.setattr(app_module, 'broadcasts', [])
+    monkeypatch.setattr(
+        app_module, 'datetime',
+        type('FixedDateTime', (app_module.datetime,), {
+            'now': classmethod(lambda cls, tz=None: cls(2026, 10, 4, 12, 0, tzinfo=tz))
+        })
+    )
+
+    response = app_module.app.test_client().get('/')
+    html = response.get_data(as_text=True)
+    assert response.status_code == 200
+    disaster_list = html.split('<div id="disasterInfoList">', 1)[1].split('</div>', 1)[0]
+    assert '本日の指示' in disaster_list
+    assert '前日の指示' not in disaster_list
+    assert '日時不明の指示' not in disaster_list
+    assert '<option value="today" selected>当日のみ</option>' in html
+    assert '<option value="week">過去1週間</option>' in html
+    assert '<option value="month">過去1か月</option>' in html
+    assert '<option value="halfyear">過去半年</option>' in html
+    assert '<option value="year">過去1年</option>' in html
+
+
+def test_latest_instructions_initially_show_only_today_and_have_independent_period_filter(monkeypatch):
+    monkeypatch.setattr(app_module, 'instructions', [
+        {
+            'target': '住民', 'content': '本日の新着指示',
+            'created_at': '2026-10-04T00:15:00+09:00',
+        },
+        {
+            'target': '住民', 'content': '先週の指示',
+            'created_at': '2026-09-28T23:59:00+09:00',
+        },
+        {
+            'target': '住民', 'content': '古い解除指示',
+            'status': '解除', 'created_at': '2026年07月14日 18:38',
+        },
+    ])
+    monkeypatch.setattr(app_module, 'broadcasts', [])
+    monkeypatch.setattr(
+        app_module, 'datetime',
+        type('FixedDateTime', (app_module.datetime,), {
+            'now': classmethod(lambda cls, tz=None: cls(2026, 10, 4, 12, 0, tzinfo=tz))
+        })
+    )
+
+    response = app_module.app.test_client().get('/')
+    html = response.get_data(as_text=True)
+    latest_list = html.split('<div id="latestInstructions">', 1)[1].split('</div>', 1)[0]
+    assert response.status_code == 200
+    assert '本日の新着指示' in latest_list
+    assert '先週の指示' not in latest_list
+    assert '古い解除指示' not in latest_list
+    assert 'id="latestInstructionPeriodFilter"' in html
+    assert '<option value="today" selected>当日のみ</option>' in html
+    assert '<option value="week">過去1週間</option>' in html
+    assert '<option value="month">過去1か月</option>' in html
+    assert '<option value="halfyear">過去半年</option>' in html
+    assert '<option value="year">過去1年</option>' in html
+
+
+def test_latest_instructions_show_empty_message_when_no_notice_in_selected_period(monkeypatch):
+    monkeypatch.setattr(app_module, 'instructions', [{
+        'target': '住民', 'content': '古い指示',
+        'created_at': '2026-07-14T18:38:00+09:00',
+    }])
+    monkeypatch.setattr(app_module, 'broadcasts', [])
+    monkeypatch.setattr(
+        app_module, 'datetime',
+        type('FixedDateTime', (app_module.datetime,), {
+            'now': classmethod(lambda cls, tz=None: cls(2026, 10, 4, 12, 0, tzinfo=tz))
+        })
+    )
+
+    response = app_module.app.test_client().get('/')
+    html = response.get_data(as_text=True)
+    latest_list = html.split('<div id="latestInstructions">', 1)[1].split('</div>', 1)[0]
+    assert response.status_code == 200
+    assert '選択した期間の新着指示はありません。' in latest_list
+    assert '古い指示' not in latest_list
+
+
+def test_disaster_information_empty_today_shows_clear_empty_state(monkeypatch):
+    monkeypatch.setattr(app_module, 'instructions', [{
+        'target': '住民', 'content': '古い指示',
+        'created_at': '2026-07-14T18:38:00+09:00',
+    }])
+    monkeypatch.setattr(app_module, 'broadcasts', [])
+    monkeypatch.setattr(
+        app_module, 'datetime',
+        type('FixedDateTime', (app_module.datetime,), {
+            'now': classmethod(lambda cls, tz=None: cls(2026, 10, 4, 12, 0, tzinfo=tz))
+        })
+    )
+
+    response = app_module.app.test_client().get('/')
+    html = response.get_data(as_text=True)
+    disaster_list = html.split('<div id="disasterInfoList">', 1)[1].split('</div>', 1)[0]
+    assert response.status_code == 200
+    assert '選択した期間の災害情報はありません。' in disaster_list
+    assert '古い指示' not in disaster_list
 
 
 def test_weather_api_no_warning_and_failure_are_not_conflated(monkeypatch):

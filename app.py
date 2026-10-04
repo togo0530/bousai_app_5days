@@ -241,6 +241,24 @@ def resident_broadcasts(source, limit=None):
     )
     return resident[:limit] if limit is not None else resident
 
+
+def prepare_resident_broadcasts(source):
+    prepared = []
+    for item in resident_broadcasts(source):
+        broadcast = dict(item)
+        timestamp = first_value(item, "published_at", "created_at")
+        parsed_time = parse_instruction_datetime(timestamp)
+        broadcast["display_date"] = (
+            parsed_time.strftime("%Y-%m-%d") if parsed_time else ""
+        )
+        broadcast["display_time"] = (
+            parsed_time.strftime("%Y年%m月%d日 %H:%M")
+            if parsed_time else str(timestamp or "日時不明")
+        )
+        prepared.append(broadcast)
+    return prepared
+
+
 def format_report_time(iso_str):
     """気象庁の発表時刻（ISO形式）をJSTの表示用文字列に変換する"""
     if not iso_str:
@@ -470,6 +488,7 @@ def prepare_resident_instructions(source):
                 parsed_time.strftime("%Y年%m月%d日 %H:%M")
                 if parsed_time else str(timestamp or "日時不明")
             ),
+            "display_date": parsed_time.strftime("%Y-%m-%d") if parsed_time else "",
             "sort_time": parsed_time.timestamp() if parsed_time else None,
             "display_shelter": str(first_value(original, "shelter", "shelter_name")),
             "display_district": str(first_value(original, "district", "area") or "全地区"),
@@ -620,7 +639,7 @@ def get_weather_warnings():
 @app.route('/')
 def index():
     resident_notices = prepare_resident_instructions(instructions)
-    latest_broadcasts = resident_broadcasts(broadcasts, limit=5)
+    latest_broadcasts = prepare_resident_broadcasts(broadcasts)
     local_shelters = [shelter for shelter in shelters if is_aomori_shelter(shelter)]
     map_shelters = []
     for shelter in local_shelters:
@@ -638,6 +657,7 @@ def index():
         resident_notices=resident_notices,
         latest_notices=resident_notices[:5],
         latest_broadcasts=latest_broadcasts,
+        today_jst=datetime.now(JST).date().isoformat(),
         disaster_types=sorted({item["display_type"] for item in resident_notices}),
         map_shelters=map_shelters,
         unlocated_shelters=[
@@ -796,8 +816,6 @@ def shelter_form_values(source):
             or text_value('status').strip()
             or '未開設'
         ),
-        'latitude': text_value('latitude'),
-        'longitude': text_value('longitude'),
         'capacity': text_value('capacity'),
         'current_count': text_value('current_count'),
         'facilities': source.getlist('facilities'),
@@ -854,28 +872,6 @@ def validate_shelter_form(source):
         else:
             validated_data[field] = None
 
-    latitude = form_data['latitude'].strip()
-    longitude = form_data['longitude'].strip()
-    coordinates = {}
-    if latitude or longitude:
-        try:
-            latitude_value = float(latitude)
-            longitude_value = float(longitude)
-        except ValueError:
-            errors['latitude'] = '緯度と経度は両方とも数値で入力してください。'
-            errors['longitude'] = '緯度と経度は両方とも数値で入力してください。'
-        else:
-            if not latitude:
-                errors['latitude'] = '緯度を入力してください。'
-            elif not math.isfinite(latitude_value) or not AOMORI_BOUNDS[0] <= latitude_value <= AOMORI_BOUNDS[1]:
-                errors['latitude'] = '青森市の対象範囲内の緯度を入力してください。'
-            if not longitude:
-                errors['longitude'] = '経度を入力してください。'
-            elif not math.isfinite(longitude_value) or not AOMORI_BOUNDS[2] <= longitude_value <= AOMORI_BOUNDS[3]:
-                errors['longitude'] = '青森市の対象範囲内の経度を入力してください。'
-            if not errors.get('latitude') and not errors.get('longitude'):
-                coordinates = {'latitude': latitude_value, 'longitude': longitude_value}
-    validated_data.update(coordinates)
     return (form_data if errors else validated_data), errors
 
 
@@ -956,12 +952,6 @@ def commit_shelter_draft(existing_shelter, is_edit):
         'status': form_data['shelter_status'],
         'shelter_status': form_data['shelter_status'],
     }
-    updated_shelter.pop('latitude', None)
-    updated_shelter.pop('longitude', None)
-    if form_data.get('latitude') is not None and form_data.get('longitude') is not None:
-        updated_shelter['latitude'] = form_data['latitude']
-        updated_shelter['longitude'] = form_data['longitude']
-
     if is_edit:
         shelter_index = next(
             index for index, shelter in enumerate(shelters)
@@ -1409,8 +1399,9 @@ def api_disaster_info():
     prepared = prepare_resident_instructions(saved_instructions)
     return jsonify({
         "instructions": prepared,
-        "broadcasts": resident_broadcasts(saved_broadcasts, limit=5),
+        "broadcasts": prepare_resident_broadcasts(saved_broadcasts),
         "updated_at": get_japan_time(),
+        "today_jst": datetime.now(JST).date().isoformat(),
     })
 
 if __name__ == '__main__':

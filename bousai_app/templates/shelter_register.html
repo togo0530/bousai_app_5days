@@ -86,15 +86,6 @@
         {% endfor %}
       </fieldset>
       <div class="form-field">
-        <label for="latitude">緯度（任意）</label>
-        <input type="number" id="latitude" name="latitude" min="40.4" max="41.3" step="any" value="{{ form_data.get('latitude', '') }}" placeholder="例：40.8244">
-      </div>
-      <div class="form-field">
-        <label for="longitude">経度（任意）</label>
-        <input type="number" id="longitude" name="longitude" min="140.3" max="141.3" step="any" value="{{ form_data.get('longitude', '') }}" placeholder="例：140.7400">
-        <p class="field-help">入力する場合は緯度・経度の両方が必要です。</p>
-      </div>
-      <div class="form-field">
         <label for="capacity">収容人数</label>
         <input type="number" id="capacity" name="capacity" min="0" max="999999999" step="1" value="{{ form_data.get('capacity', '') }}" aria-describedby="{% if field_errors.get('capacity') %}capacity-error{% else %}capacity-help{% endif %}" aria-invalid="{{ 'true' if field_errors.get('capacity') else 'false' }}">
         <p id="capacity-help" class="field-help">未入力の場合は未登録です。入力する場合は0以上の整数を入力してください。</p>

@@ -12,6 +12,13 @@
   .board-heading { color: #0f172a; }
   .board-panel { margin: 18px 0; padding: 20px; background: #fff; border: 1px solid #cbd5e1; border-radius: 12px; box-shadow: 0 2px 10px rgba(15,23,42,.06); }
   .board-panel h2 { margin: 0 0 14px; color: #0f4a87; font-size: 23px; }
+  .board-panel > summary { display: flex; align-items: center; gap: 12px; min-height: 48px; color: #0f4a87; font-size: 21px; font-weight: 700; cursor: pointer; list-style: none; }
+  .board-panel > summary::-webkit-details-marker { display: none; }
+  .board-panel > summary::before { content: "＋"; display: inline-grid; width: 30px; height: 30px; place-items: center; border: 1px solid #075985; border-radius: 50%; color: #075985; font-size: 20px; line-height: 1; }
+  .board-panel[open] > summary::before { content: "−"; }
+  .board-panel > summary:focus-visible { outline: 3px solid #f59e0b; outline-offset: 3px; border-radius: 4px; }
+  .board-panel[open] > summary { margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #cbd5e1; }
+  .board-panel > summary .summary-hint { margin-left: auto; color: #475569; font-size: 14px; font-weight: 500; }
   .board-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
   .board-field { display: grid; align-content: start; gap: 6px; }
   .board-field.full { grid-column: 1 / -1; }
@@ -65,8 +72,8 @@
   {% if error_message %}<p class="board-error" role="alert">{{ error_message }}</p>{% endif %}
   {% if success_message %}<p class="board-success" role="status">{{ success_message }}</p>{% endif %}
 
-  <section class="board-panel" aria-labelledby="instruction-form-title">
-    <h2 id="instruction-form-title">指示を登録</h2>
+  <details class="board-panel" aria-labelledby="instruction-form-title"{% if instruction_errors %} open{% endif %}>
+    <summary id="instruction-form-title">指示を登録<span class="summary-hint">クリックして入力欄を表示</span></summary>
     <form method="post" action="{{ url_for('board') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="board-form-grid">
@@ -117,10 +124,10 @@
         </div>
       </div>
     </form>
-  </section>
+  </details>
 
-  <section class="board-panel" aria-labelledby="broadcast-form-title">
-    <h2 id="broadcast-form-title">住民向け情報を発信</h2>
+  <details class="board-panel" aria-labelledby="broadcast-form-title"{% if broadcast_errors or broadcast_preview %} open{% endif %}>
+    <summary id="broadcast-form-title">住民向け情報を発信<span class="summary-hint">クリックして入力欄を表示</span></summary>
     <form id="broadcast-form" method="post" action="{{ url_for('board') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="board-form-grid">
@@ -190,10 +197,10 @@
         </form>
       </div>
     {% endif %}
-  </section>
+  </details>
 
-  <section class="board-panel" aria-labelledby="instruction-list-title">
-    <h2 id="instruction-list-title">指示一覧</h2>
+  <details class="board-panel" aria-labelledby="instruction-list-title">
+    <summary id="instruction-list-title">指示一覧<span class="summary-hint">{{ instructions|length }}件・緊急度（高→中→低）、同じ緊急度は新しい順</span></summary>
     {% if instructions %}
       <div class="instruction-list">
         {% for instruction in instructions %}
@@ -229,10 +236,10 @@
     {% else %}
       <p class="empty-state">登録されている指示はありません。</p>
     {% endif %}
-  </section>
+  </details>
 
-  <section class="board-panel" aria-labelledby="broadcast-history-title">
-    <h2 id="broadcast-history-title">発信履歴</h2>
+  <details class="board-panel" aria-labelledby="broadcast-history-title">
+    <summary id="broadcast-history-title">発信履歴<span class="summary-hint">{{ broadcasts|length }}件・新しい順</span></summary>
     {% if broadcasts %}
       <div class="broadcast-list">
         {% for item in broadcasts %}
@@ -248,7 +255,7 @@
     {% else %}
       <p class="empty-state">発信履歴はありません。</p>
     {% endif %}
-  </section>
+  </details>
 </main>
 
 <script>

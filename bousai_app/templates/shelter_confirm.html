@@ -41,7 +41,6 @@
       <dt>開設状況</dt><dd>{{ form_data.shelter_status }}</dd>
       <dt>その他の設備</dt><dd>{{ form_data.facilities|join('、') if form_data.facilities else '未登録' }}</dd>
       <dt>補足情報</dt><dd>{{ form_data.supplemental_info or '未登録' }}</dd>
-      <dt>緯度・経度</dt><dd>{% if form_data.latitude is not none and form_data.longitude is not none %}{{ form_data.latitude }}, {{ form_data.longitude }}{% else %}未登録{% endif %}</dd>
     </dl>
     <div class="confirm-actions">
       <form method="post" action="{% if is_edit %}{{ url_for('edit_shelter', shelter_id=shelter_id) }}{% else %}{{ url_for('shelter_register') }}{% endif %}">
