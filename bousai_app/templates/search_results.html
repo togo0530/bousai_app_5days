@@ -6,7 +6,14 @@
 {% if results %}
   <ul>
     {% for shelter in results %}
-    <li>{{ shelter.name }}</li>
+    <li>
+      {{ shelter.name }}
+      {% if session.get('logged_in') %}
+        <form method="post" action="{{ url_for('delete_shelter', shelter_id=shelter.id) }}" style="display:inline; margin-left: 10px;">
+          <button type="submit" onclick="return confirm('この避難所を削除しますか？');">削除</button>
+        </form>
+      {% endif %}
+    </li>
     {% endfor %}
   </ul>
 {% else %}
